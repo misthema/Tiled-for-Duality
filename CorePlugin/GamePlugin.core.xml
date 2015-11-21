@@ -1,0 +1,48 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>GamePlugin.core</name>
+    </assembly>
+    <members>
+        <member name="T:TileD_Plugin.TileD_PluginCorePlugin">
+            <summary>
+            Defines a Duality core plugin.
+            </summary>
+        </member>
+        <member name="T:TileD_Plugin.TileD.TiledImageLayer">
+            <summary>
+            Description of TiledImageLayer.
+            </summary>
+        </member>
+        <member name="T:TileD_Plugin.TileD.TiledLayer">
+            <summary>
+            Description of TiledLayer.
+            </summary>
+        </member>
+        <member name="T:TileD_Plugin.TileD.TiledMap">
+            <summary>
+            Description of TiledMap.
+            </summary>
+        </member>
+        <member name="T:TileD_Plugin.TileD.TiledObject">
+            <summary>
+            Description of TiledObject.
+            </summary>
+        </member>
+        <member name="T:TileD_Plugin.TileD.TiledObjectGroup">
+            <summary>
+            Description of TiledObjectGroup.
+            </summary>
+        </member>
+        <member name="T:TileD_Plugin.TileD.TiledPropertySet">
+            <summary>
+            Description of TiledPropertySet.
+            </summary>
+        </member>
+        <member name="T:TileD_Plugin.TileD.TiledTileset">
+            <summary>
+            Description of TiledTileset.
+            </summary>
+        </member>
+    </members>
+</doc>
