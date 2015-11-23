@@ -2,13 +2,13 @@
 <Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|AnyCPU'">
     <StartAction>Program</StartAction>
-    <StartProgram>D:\! Duality Projects\TileD Plugin\DualityEditor.exe</StartProgram>
-    <StartWorkingDirectory>D:\! Duality Projects\TileD Plugin</StartWorkingDirectory>
+    <StartProgram>D:\! Duality Projects\TiledPlugin\DualityEditor.exe</StartProgram>
+    <StartWorkingDirectory>D:\! Duality Projects\TiledPlugin</StartWorkingDirectory>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|AnyCPU'">
     <StartAction>Program</StartAction>
-    <StartProgram>D:\! Duality Projects\TileD Plugin\DualityEditor.exe</StartProgram>
-    <StartWorkingDirectory>D:\! Duality Projects\TileD Plugin</StartWorkingDirectory>
+    <StartProgram>D:\! Duality Projects\TiledPlugin\DualityEditor.exe</StartProgram>
+    <StartWorkingDirectory>D:\! Duality Projects\TiledPlugin</StartWorkingDirectory>
   </PropertyGroup>
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>

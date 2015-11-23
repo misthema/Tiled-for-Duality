@@ -27,8 +27,7 @@ namespace TileD_Plugin.TileD
 		public float Opacity {get;set;}
 		public bool Visible {get;set;}
 		public TiledPropertySet Properties {get;set;}
-		public int[,] Tiles {get;set;}
-		public TiledTileset Tileset {get;set;}
+		public int[] Tiles {get;set;}
 		public TiledMap Parent {get;set;}
 		
 		public TiledLayer(int w, int h)
@@ -36,7 +35,7 @@ namespace TileD_Plugin.TileD
 			Name = "UnnamedLayer";
 			W = w;
 			H = h;
-			Tiles = new int[w, h];
+			Tiles = new int[w * h];
 			Properties = new TiledPropertySet();
 		}
 		
@@ -48,8 +47,8 @@ namespace TileD_Plugin.TileD
 				return false;
 			}
 			
-			if( x < 0 || x > Tiles.GetUpperBound(0)
-			   || y < 0 || y > Tiles.GetUpperBound(1) )
+			if( x < 0 || x > W
+			   || y < 0 || y > H )
 			{
 				Log.Editor.WriteWarning("Trying to access a tile out of bounds.");
 				return false;
@@ -61,12 +60,12 @@ namespace TileD_Plugin.TileD
 		public void SetTile( int x, int y, int newID )
 		{
 			if( validateTiles(x, y) )
-				Tiles[x, y] = newID;
+				Tiles[y * W + x] = newID;
 		}
 		
 		public int GetTile( int x, int y )
 		{
-			return !validateTiles(x, y) ? -1 : Tiles[x, y];
+			return !validateTiles(x, y) ? -1 : Tiles[y * W + x];
 		}
 		
 		public void LoadTiles( XElement node )

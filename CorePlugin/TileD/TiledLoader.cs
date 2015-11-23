@@ -15,7 +15,7 @@ using SnowyPeak.Duality.Plugin.Data.Resources;
 
 namespace TileD_Plugin.TileD
 {
-	public class TiledLoader : Component, ICmpEditorUpdatable, ICmpRenderer
+	public class TiledLoader : Component, ICmpEditorUpdatable
 	{
 		public ContentRef<XmlData> TileDMap {get;set;}
 		public ContentRef<Texture> CustomTileset {get;set;}
@@ -35,20 +35,9 @@ namespace TileD_Plugin.TileD
 			TilesetPaths.Add("Data\\");
 		}
 		
-		public void Draw(IDrawDevice device)
-		{
-			
-			//tileSet.Res.LookupAtlas(			
-		}
-		
-		public bool IsVisible(IDrawDevice device)
-		{
-			return true;
-		}
-		
 		public void OnUpdate()
 		{
-			if( !inited && TileDMap != null)
+			if( !inited && Map == null && TileDMap.IsLoaded )
 			{
 				Log.Editor.Write("Tilemap resource set...");
 				LoadMap(TileDMap.Res);
@@ -57,9 +46,10 @@ namespace TileD_Plugin.TileD
 				/*if( Map != null )
 					Log.Editor.Write("Tilemap loaded!");*/
 			}
-			else if( TileDMap == null && inited)
+			else if( Map == null && inited)
 			{
 				inited = false;
+				Map.DisposeLater();
 				Map = null;
 			}
 			
@@ -79,8 +69,9 @@ namespace TileD_Plugin.TileD
 		public void LoadMap(XmlData map)
 		{
 			Map = new TiledMap(map);
+			Map.GameObj = this.GameObj;
 			
-			printNode( map.XmlDocument.Root );
+			//printNode( map.XmlDocument.Root );
 			
 			//PlayAround();
 		}

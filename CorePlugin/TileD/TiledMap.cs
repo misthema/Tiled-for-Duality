@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Xml.Linq;
 using Duality;
+using Duality.Drawing;
 using Duality.Cloning;
 using Duality.Editor;
 using Duality.Properties;
@@ -23,14 +24,8 @@ namespace TileD_Plugin.TileD
 	/// <summary>
 	/// Description of TiledMap.
 	/// </summary>
-	[EditorHintCategory(CoreResNames.CategoryPhysics)]
-	[EditorHintImage(CoreResNames.ImageRigidBody)]
-	public class TiledMap : Component, ICmpEditorUpdatable
+	public class TiledMap : Component, ICmpRenderer
 	{
-		public void OnUpdate()
-		{
-			
-		}
 		
 		//public GameObject GameObj {get;set;}
 		
@@ -72,14 +67,21 @@ namespace TileD_Plugin.TileD
 		public Dictionary<string, TiledObjectGroup> ObjectGroups {get;set;}
 		public Dictionary<string, TiledImageLayer> ImageLayers {get;set;}
 		
+		private bool _loaded;
 		
 		public TiledMap(XmlData map)
 		{
 			//this.GameObj = obj;
 			
+			Tilesets = new Dictionary<string, TiledTileset>();
+			Layers = new Dictionary<string, TiledLayer>();
+			ObjectGroups = new Dictionary<string, TiledObjectGroup>();
+			ImageLayers = new Dictionary<string, TiledImageLayer>();
+			
 			var root = map.XmlDocument.Root;
 			XElement node;
 			
+			_loaded = false;
 			
 			
 			foreach( var x in map.XmlDocument.Nodes() )
@@ -100,18 +102,22 @@ namespace TileD_Plugin.TileD
 							{
 								case "layer":
 									TiledLayer layer = LoadLayer(node);
+									if( layer != null ) Layers.Add(layer.Name, layer);
 									
 									break;
 								case "tileset":
 									TiledTileset tileset = LoadTileset(node);
+									if( tileset != null ) Tilesets.Add(tileset.Name, tileset);
 									
 									break;
 								case "objectgroup":
 									TiledObjectGroup objGroup = LoadObjectGroup(node);
+									if( objGroup != null ) ObjectGroups.Add(objGroup.Name, objGroup);
 									
 									break;
 								case "imagelayer":
 									TiledImageLayer imgLayer = LoadImageLayer(node);
+									if( imgLayer != null ) ImageLayers.Add(imgLayer.Name, imgLayer);
 									
 									break;
 							}
@@ -123,6 +129,8 @@ namespace TileD_Plugin.TileD
 				
 				Log.Editor.Write("Width: {0}, Height: {1}", W, H);
 			}
+			
+			_loaded = true;
 		}
 		
 		void ReadMapAttributes(XElement node)
@@ -245,9 +253,14 @@ namespace TileD_Plugin.TileD
 						switch( element.Name.LocalName )
 						{
 							case "tileoffset":
+								var tileoff = tileset.TileOffset;
+								tileoff.X = int.Parse( element.Attribute("x").Value, System.Globalization.NumberStyles.Integer );
+								tileoff.Y = int.Parse( element.Attribute("y").Value, System.Globalization.NumberStyles.Integer );
+								tileset.TileOffset = tileoff;
 								break;
 								
 							case "image":
+								tileset.LoadImage( element );
 								break;
 								
 							case "terraintypes":
@@ -285,5 +298,108 @@ namespace TileD_Plugin.TileD
 			return null;
 		}
 		
+		
+		public void Draw( IDrawDevice device )
+		{
+			if( GameObj == null || !_loaded || Layers == null || Layers.Count == 0 )
+				return;
+			
+			Vector3 tempPos = GameObj.Transform.Pos;
+			float tempScale = 1f;
+			device.PreprocessCoords( ref tempPos, ref tempScale );
+			
+			int halfMapW = W / 2;
+			int halfMapH = H / 2;
+			
+			for (var i = Layers.Values.GetEnumerator(); i.MoveNext();) {
+				
+				var layer = i.Current;
+				
+				if (!layer.Visible)
+					continue;
+				
+				var vertices = new VertexC1P3T2[4];
+				
+				for (int y = 0; y < H; y++) {
+					
+					for (int x = 0; x < W; x++) {
+						
+						// Is renderable tile available?
+						int gid = layer.GetTile(x, y);
+						if (gid <= 0)
+							continue;
+						
+						// Get the correct tileset for this GID
+						var tileset = TiledTileset.FindByGID(gid);
+						if (tileset == null)
+							continue;
+						
+						
+						
+						int tileX = (gid - tileset.FirstGID) % tileset.W;
+						int tileY = (gid - tileset.FirstGID) / tileset.W;
+						
+						var uvRect = new Rect(
+							(tileX * TileW) / tileset.WPixel,
+							(tileY * TileH) / tileset.HPixel,
+							(tileX * TileW + TileW) / tileset.WPixel,
+							(tileY * TileH + TileH) / tileset.HPixel
+						);
+						
+						int posX = (int)(tempPos.X) + (x - halfMapW) * TileW;
+						int posY = (int)(tempPos.Y) + (y - halfMapH) * TileH;
+						
+						// Top-left
+						vertices[0] = new VertexC1P3T2();
+						vertices[0].Pos.X = posX - (TileW / 2);
+						vertices[0].Pos.Y = posY - (TileH / 2);
+						vertices[0].Pos.Z = tempPos.Z;
+						vertices[0].TexCoord.X = uvRect.X;
+						vertices[0].TexCoord.Y = uvRect.Y;
+						vertices[0].Color = ColorRgba.White;
+						
+						// Bottom-left
+						vertices[1] = new VertexC1P3T2();
+						vertices[1].Pos.X = posX - (TileW / 2);
+						vertices[1].Pos.Y = posY + (TileH / 2);
+						vertices[1].Pos.Z = tempPos.Z;
+						vertices[1].TexCoord.X = uvRect.X;
+						vertices[1].TexCoord.Y = uvRect.BottomY;
+						vertices[1].Color = ColorRgba.White;
+						
+						// Bottom-right
+						vertices[2] = new VertexC1P3T2();
+						vertices[2].Pos.X = posX + (TileW / 2);
+						vertices[2].Pos.Y = posY + (TileH / 2);
+						vertices[2].Pos.Z = tempPos.Z;
+						vertices[2].TexCoord.X = uvRect.RightX;
+						vertices[2].TexCoord.Y = uvRect.BottomY;
+						vertices[2].Color = ColorRgba.White;
+						
+						// Top-right
+						vertices[3] = new VertexC1P3T2();
+						vertices[3].Pos.X = posX + (TileW / 2);
+						vertices[3].Pos.Y = posY - (TileH / 2);
+						vertices[3].Pos.Z = tempPos.Z;
+						vertices[3].TexCoord.X = uvRect.RightX;
+						vertices[3].TexCoord.Y = uvRect.Y;
+						vertices[3].Color = ColorRgba.White;
+						
+						device.AddVertices(tileset.Image, VertexMode.Quads, vertices);
+					}
+				}
+			}
+		}
+		
+		public bool IsVisible( IDrawDevice device )
+		{
+			return true;
+		}
+
+		public float BoundRadius {
+			get {
+				return 1f;
+			}
+		}
 	}
 }
