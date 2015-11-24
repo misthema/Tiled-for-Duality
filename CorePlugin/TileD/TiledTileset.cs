@@ -28,8 +28,6 @@ namespace TileD_Plugin.TileD
 	/// </summary>
 	public class TiledTileset
 	{
-		public static List<TiledTileset> Tilesets {get;set;}
-		
 		public string Name {get;set;}
 		public ContentRef<Material> Image {get;set;}
 		public int W {get;set;}
@@ -57,11 +55,6 @@ namespace TileD_Plugin.TileD
 			TileProperties = new Dictionary<int, TiledPropertySet>();
 			TerrainTypes = new Dictionary<int, TiledTerrainType>();
 			TileCount = 0;
-			
-			if( TiledTileset.Tilesets == null )
-				TiledTileset.Tilesets = new List<TiledTileset>();
-			else
-				TiledTileset.Tilesets.Add(this);
 		}
 		
 		public bool Contains( int gid )
@@ -71,24 +64,7 @@ namespace TileD_Plugin.TileD
 			
 			return false;
 		}
-		
-		public static TiledTileset FindByGID( int gid )
-		{
-			TiledTileset tileset = Tilesets[0];
-			int i = 0;
-			
-			while( tileset != null )
-			{
-				if( tileset.Contains(gid) )
-					return tileset;
-				
-				i++;
-				tileset = Tilesets[i];
-			}
-			
-			return null;
-		}
-		
+
 		public void LoadImage( XElement node )
 		{
 			if( !node.HasAttributes || node.Name != "image" )
@@ -107,15 +83,15 @@ namespace TileD_Plugin.TileD
 			string tilesetName = split[ split.Length-1 ].Replace(".png", "");
 			
 			Log.Editor.Write("Tileset name: {0}", tilesetName);
-			Log.Editor.Write("Found Pixmaps:");
-			foreach( var res in ContentProvider.GetAvailableContent<Pixmap>() )
+			Log.Editor.Write("Found Materials:");
+			foreach( var res in ContentProvider.GetAvailableContent<Material>() )
 			{
 				
 				Log.Editor.Write("    {0}", res.FullName);
 				
 				if( !res.FullName.Contains(tilesetName) ) continue;
 				
-				Log.Editor.Write("    Using {0}, creating Texture...", res.FullName);
+				/*Log.Editor.Write("    Using {0}, creating Texture...", res.FullName);
 				Texture tex = new Texture(
 					res.Res,
 					TextureSizeMode.NonPowerOfTwo
@@ -126,10 +102,10 @@ namespace TileD_Plugin.TileD
 					DrawTechnique.Mask,
 					ColorRgba.White,
 					new ContentRef<Texture>(tex)
-				);
+				);*/
 				
-				Log.Editor.Write("    Using {0}, creating Material...", res.FullName);
-				Image = new ContentRef<Material>(new Material(binf));
+				Log.Editor.Write("    Using {0}, loading Material...", res.FullName);
+				Image = res;
 				//Image = res;
 				
 				break;

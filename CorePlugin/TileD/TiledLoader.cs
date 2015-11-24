@@ -37,9 +37,8 @@ namespace TileD_Plugin.TileD
 		
 		public void OnUpdate()
 		{
-			if( !inited && Map == null && TileDMap.IsLoaded )
+			if( !inited && Map == null && TileDMap != null )
 			{
-				Log.Editor.Write("Tilemap resource set...");
 				LoadMap(TileDMap.Res);
 				inited = true;
 				
@@ -50,7 +49,8 @@ namespace TileD_Plugin.TileD
 			{
 				inited = false;
 				Map.DisposeLater();
-				Map = null;
+				Map.Clear();
+				//Map = null;
 			}
 			
 			

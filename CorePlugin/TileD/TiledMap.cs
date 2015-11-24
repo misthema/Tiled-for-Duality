@@ -24,7 +24,7 @@ namespace TileD_Plugin.TileD
 	/// <summary>
 	/// Description of TiledMap.
 	/// </summary>
-	public class TiledMap : Component, ICmpRenderer
+	public class TiledMap : Component, IDisposable, ICmpRenderer
 	{
 		
 		//public GameObject GameObj {get;set;}
@@ -128,9 +128,22 @@ namespace TileD_Plugin.TileD
 				}
 				
 				Log.Editor.Write("Width: {0}, Height: {1}", W, H);
+				Log.Editor.Write("Layer order:");
+				foreach( var la in Layers.Values )
+				{
+					Log.Editor.Write("    {0}", la.Name );
+				}
 			}
 			
 			_loaded = true;
+		}
+		
+		public void Clear()
+		{
+			Tilesets.Clear();
+			Layers.Clear();
+			ObjectGroups.Clear();
+			ImageLayers.Clear();
 		}
 		
 		void ReadMapAttributes(XElement node)
@@ -282,6 +295,7 @@ namespace TileD_Plugin.TileD
 		
 		TiledObjectGroup LoadObjectGroup( XElement node )
 		{
+			// TODO: LoadObjectGroup and rendering
 			Log.Editor.Write("Loading object group '{0}'...", node.Attribute("name").Value);
 			
 			//objGroup.Parent = this;
@@ -291,9 +305,21 @@ namespace TileD_Plugin.TileD
 		
 		TiledImageLayer LoadImageLayer( XElement node )
 		{
+			// TODO: LoadImageLayer and rendering
 			Log.Editor.Write("Loading image layer '{0}'...", node.Attribute("name").Value);
 			
 			//imgLayer.Parent = this;
+			
+			return null;
+		}
+		
+		public TiledTileset FindTilesetByGID( int gid )
+		{
+			foreach (var tileset in Tilesets.Values)
+			{
+				if( tileset.Contains(gid) )
+					return tileset;
+			}
 			
 			return null;
 		}
@@ -317,9 +343,7 @@ namespace TileD_Plugin.TileD
 				
 				if (!layer.Visible)
 					continue;
-				
-				var vertices = new VertexC1P3T2[4];
-				
+		
 				for (int y = 0; y < H; y++) {
 					
 					for (int x = 0; x < W; x++) {
@@ -330,61 +354,77 @@ namespace TileD_Plugin.TileD
 							continue;
 						
 						// Get the correct tileset for this GID
-						var tileset = TiledTileset.FindByGID(gid);
+						var tileset = FindTilesetByGID(gid);
 						if (tileset == null)
 							continue;
-						
-						
-						
+		
+						// Remove tileset's FirstGID from the tile ID
+						// so we get the correct position in the image.
 						int tileX = (gid - tileset.FirstGID) % tileset.W;
 						int tileY = (gid - tileset.FirstGID) / tileset.W;
 						
+						// Let 'em float...
+						float tx = (float)tileX;
+						float ty = (float)tileY;
+						float tw = (float)TileW;
+						float th = (float)TileH;
+						float twp = (float)tileset.WPixel;
+						float thp = (float)tileset.HPixel;
+						
+						var vertices = new VertexC1P3T2[4];
+						var color = tileset.Image.Res.MainColor;
+						var uvRatio = tileset.Image.Res.MainTexture.Res.UVRatio;
+						
+						// Texture coordinates
 						var uvRect = new Rect(
-							(tileX * TileW) / tileset.WPixel,
-							(tileY * TileH) / tileset.HPixel,
-							(tileX * TileW + TileW) / tileset.WPixel,
-							(tileY * TileH + TileH) / tileset.HPixel
+							uvRatio.X * (tx * tw) / twp,
+							uvRatio.Y * (ty * th) / thp,
+							uvRatio.X * tw / twp,
+							uvRatio.Y * th / thp
 						);
 						
-						int posX = (int)(tempPos.X) + (x - halfMapW) * TileW;
-						int posY = (int)(tempPos.Y) + (y - halfMapH) * TileH;
-						
-						// Top-left
-						vertices[0] = new VertexC1P3T2();
-						vertices[0].Pos.X = posX - (TileW / 2);
-						vertices[0].Pos.Y = posY - (TileH / 2);
-						vertices[0].Pos.Z = tempPos.Z;
-						vertices[0].TexCoord.X = uvRect.X;
-						vertices[0].TexCoord.Y = uvRect.Y;
-						vertices[0].Color = ColorRgba.White;
+						// Position
+						float posX = tempPos.X + ((float)x - (float)halfMapW) * (float)TileW;
+						float posY = tempPos.Y + ((float)y - (float)halfMapH) * (float)TileH;
 						
 						// Bottom-left
-						vertices[1] = new VertexC1P3T2();
-						vertices[1].Pos.X = posX - (TileW / 2);
-						vertices[1].Pos.Y = posY + (TileH / 2);
-						vertices[1].Pos.Z = tempPos.Z;
-						vertices[1].TexCoord.X = uvRect.X;
-						vertices[1].TexCoord.Y = uvRect.BottomY;
-						vertices[1].Color = ColorRgba.White;
+						vertices[0] = new VertexC1P3T2();
+						vertices[0].Pos.X = (posX - tw / 2) * tempScale;
+						vertices[0].Pos.Y = (posY + th / 2) * tempScale;
+						vertices[0].Pos.Z = tempPos.Z;
+						vertices[0].TexCoord.X = uvRect.LeftX;
+						vertices[0].TexCoord.Y = uvRect.BottomY;
+						vertices[0].Color = color;
 						
-						// Bottom-right
-						vertices[2] = new VertexC1P3T2();
-						vertices[2].Pos.X = posX + (TileW / 2);
-						vertices[2].Pos.Y = posY + (TileH / 2);
-						vertices[2].Pos.Z = tempPos.Z;
-						vertices[2].TexCoord.X = uvRect.RightX;
-						vertices[2].TexCoord.Y = uvRect.BottomY;
-						vertices[2].Color = ColorRgba.White;
+						// Top-left
+						vertices[1] = new VertexC1P3T2();
+						vertices[1].Pos.X = (posX - tw / 2) * tempScale;
+						vertices[1].Pos.Y = (posY - th / 2) * tempScale;
+						vertices[1].Pos.Z = tempPos.Z;
+						vertices[1].TexCoord.X = uvRect.LeftX;
+						vertices[1].TexCoord.Y = uvRect.TopY;
+						vertices[1].Color = color;
 						
 						// Top-right
+						vertices[2] = new VertexC1P3T2();
+						vertices[2].Pos.X = (posX + tw / 2) * tempScale;
+						vertices[2].Pos.Y = (posY - th / 2) * tempScale;
+						vertices[2].Pos.Z = tempPos.Z;
+						vertices[2].TexCoord.X = uvRect.RightX;
+						vertices[2].TexCoord.Y = uvRect.TopY;
+						vertices[2].Color = color;
+						
+						// Bottom-right
 						vertices[3] = new VertexC1P3T2();
-						vertices[3].Pos.X = posX + (TileW / 2);
-						vertices[3].Pos.Y = posY - (TileH / 2);
+						vertices[3].Pos.X = (posX + tw / 2) * tempScale;
+						vertices[3].Pos.Y = (posY + th / 2) * tempScale;
 						vertices[3].Pos.Z = tempPos.Z;
 						vertices[3].TexCoord.X = uvRect.RightX;
-						vertices[3].TexCoord.Y = uvRect.Y;
-						vertices[3].Color = ColorRgba.White;
+						vertices[3].TexCoord.Y = uvRect.BottomY;
+						vertices[3].Color = color;
 						
+						
+		
 						device.AddVertices(tileset.Image, VertexMode.Quads, vertices);
 					}
 				}
@@ -393,7 +433,10 @@ namespace TileD_Plugin.TileD
 		
 		public bool IsVisible( IDrawDevice device )
 		{
-			return true;
+			if( device.VisibilityMask == VisibilityFlag.AllGroups )
+				return true;
+			
+			return false;
 		}
 
 		public float BoundRadius {
