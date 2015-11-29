@@ -55,6 +55,7 @@
     <Reference Include="DualityPrimitives">
       <HintPath>..\..\..\DualityPrimitives.dll</HintPath>
     </Reference>
+    <Reference Include="mscorlib" />
     <Reference Include="SnowyPeak.Duality.Data.core">
       <HintPath>..\..\..\Plugins\SnowyPeak.Duality.Data.core.dll</HintPath>
     </Reference>

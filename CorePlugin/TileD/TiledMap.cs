@@ -1,10 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Xml.Linq;
 using Duality;
 using Duality.Drawing;
+using Duality.IO;
 using Duality.Cloning;
 using Duality.Editor;
 using Duality.Properties;
@@ -19,6 +21,47 @@ namespace TileD_Plugin.TileD
 		LeftDown,
 		LeftUp,
 		Default
+	}
+	
+	public static class TiledHelper
+	{
+		public static string GetAttribute(XElement node, string name)
+		{
+			if( node != null )
+			{
+				if( !string.IsNullOrEmpty(name) )
+				{
+					if( node.HasAttributes )
+					{
+						if( node.Attribute(name) != null)
+						{
+							if( !string.IsNullOrEmpty(node.Attribute(name).Value) )
+								return node.Attribute(name).Value;
+							
+							Log.Editor.WriteWarning("TiledHelper.GetAttribute() :: Node '{0}', attribute '{1}' has no value.", node.Name, name);
+						}
+						else
+						{
+							Log.Editor.WriteWarning("TiledHelper.GetAttribute() :: Node '{0}' has no attribute '{1}'.", node.Name, name);
+						}
+					}
+					else
+					{
+						Log.Editor.WriteWarning("TiledHelper.GetAttribute() :: Node '{0}' has no attributes.", node.Name);
+					}
+				}
+				else
+				{
+					Log.Editor.WriteWarning("TiledHelper.GetAttribute() :: No attribute name specified.");
+				}
+			}
+			else
+			{
+				Log.Editor.WriteWarning("TiledHelper.GetAttribute() :: Node is NULL.");
+			}
+
+			return string.Empty;
+		}
 	}
 	
 	/// <summary>
@@ -98,6 +141,8 @@ namespace TileD_Plugin.TileD
 						{
 							node = (XElement)y;
 							
+							Log.Editor.Write("Found <{0}>...", node.Name);
+							
 							switch( node.Name.LocalName )
 							{
 								case "layer":
@@ -122,18 +167,18 @@ namespace TileD_Plugin.TileD
 									break;
 							}
 						}
-						
 						break;
-					
-				}
-				
-				Log.Editor.Write("Width: {0}, Height: {1}", W, H);
-				Log.Editor.Write("Layer order:");
-				foreach( var la in Layers.Values )
-				{
-					Log.Editor.Write("    {0}", la.Name );
 				}
 			}
+			
+			Log.Editor.Write("Width: {0}, Height: {1}", W, H);
+			Log.Editor.Write("Layer order:");
+			foreach( var la in Layers.Values )
+			{
+				Log.Editor.Write("    {0}", la.Name );
+			}
+			
+			Log.Editor.Write(ToString());
 			
 			_loaded = true;
 		}
@@ -158,11 +203,11 @@ namespace TileD_Plugin.TileD
 			
 			
 			// Get not-so-important attributes
-			Version = node.Attribute("version").Value;
-			Orientation = node.Attribute("orientation").Value;
-			NextObjectID = int.Parse(node.Attribute("nextobjectid").Value);
+			Version = TiledHelper.GetAttribute(node, "version"); //node.Attribute("version").Value;
+			Orientation = TiledHelper.GetAttribute(node, "orientation"); //node.Attribute("orientation").Value;
+			NextObjectID = int.Parse(TiledHelper.GetAttribute(node, "nextobjectid")); //node.Attribute("nextobjectid").Value);
 			
-			switch( node.Attribute("renderorder").Value )
+			switch( TiledHelper.GetAttribute(node, "renderorder") ) //node.Attribute("renderorder").Value )
 			{
 				case "right-down":
 					RenderOrder = RenderOrders.RightDown;
@@ -183,12 +228,12 @@ namespace TileD_Plugin.TileD
 			
 			
 			// Get map width and height (in tiles)
-			W = int.Parse(node.Attribute("width").Value);
-			H = int.Parse(node.Attribute("height").Value);
+			W = int.Parse(TiledHelper.GetAttribute(node, "width")); //node.Attribute("width").Value);
+			H = int.Parse(TiledHelper.GetAttribute(node, "height")); //node.Attribute("height").Value);
 			
 			// Tile sizes (in pixels)
-			TileW = int.Parse(node.Attribute("tilewidth").Value);
-			TileH = int.Parse(node.Attribute("tileheight").Value);
+			TileW = int.Parse(TiledHelper.GetAttribute(node, "tilewidth")); //node.Attribute("tilewidth").Value);
+			TileH = int.Parse(TiledHelper.GetAttribute(node, "tileheight")); //node.Attribute("tileheight").Value);
 		}
 		
 		TiledLayer LoadLayer( XElement node )
@@ -197,49 +242,63 @@ namespace TileD_Plugin.TileD
 			{
 				Log.Editor.Write("Loading layer '{0}'...", node.Attribute("name").Value);
 				
-				// Width and height
-				var w = int.Parse( node.Attribute("width").Value,
-				                   System.Globalization.NumberStyles.Integer);
-				var h = int.Parse( node.Attribute("height").Value,
-				                   System.Globalization.NumberStyles.Integer);
-				
-				// New layer
-				var layer = new TiledLayer(w, h);
+				var layer = new TiledLayer();
 				layer.Parent = this;
 				
-				// Name
-				layer.Name = node.Attribute("name").Value;
-				
-				// Opacity
-				layer.Opacity = node.Attribute("opacity") != null ? float.Parse(node.Attribute("opacity").Value, System.Globalization.NumberStyles.Float) : 1f;
-				
-				// Visible
-				layer.Visible = node.Attribute("visible") != null ? false : true;
-				
-				// Tiledata and properties
-				if( node.HasElements )
+				foreach( var attribute in node.Attributes() )
 				{
-					foreach( var element in node.Elements() )
+					Log.Editor.Write("    {0} = \"{1}\"", attribute.Name, attribute.Value );
+					
+					switch( attribute.Name.LocalName )
 					{
-						switch( element.Name.LocalName )
-						{
-							case "properties":
-								layer.Properties.Extend( element );
-								break;
-								
-							case "data":
-								layer.LoadTiles( element );
-								break;
-							default:
-								Log.Editor.WriteWarning( "'{0}' is not supported in layers!", element.Name );
-								break;
-						}
+						case "name":
+							layer.Name = attribute.Value;
+							break;
+							
+						case "width":
+							layer.W = int.Parse(attribute.Value, System.Globalization.NumberStyles.Integer);
+							break;
+							
+						case "height":
+							layer.H = int.Parse(attribute.Value, System.Globalization.NumberStyles.Integer);
+							break;
+							
+						case "opacity":
+							layer.Opacity = float.Parse(attribute.Value, System.Globalization.NumberStyles.Float);
+							break;
+							
+						case "visible":
+							layer.Visible = false;
+							break;
+							
+						default:
+							Log.Editor.WriteWarning("Attribute {0} not supported in layers.", attribute.Name);
+							break;
+					}
+				}
+				
+				foreach( var element in node.Elements() )
+				{
+					switch( element.Name.LocalName )
+					{
+						case "properties":
+							layer.LoadProperties( element );
+							break;
+							
+						case "data":
+							layer.LoadTiles( element );
+							break;
+							
+						default:
+							Log.Editor.WriteWarning("Element {0} not supported in layers.", element.Name);
+							break;
 					}
 				}
 				
 				return layer;
 			}
 			
+			Log.Editor.WriteWarning("Empty layer with no data, ignoring...");
 			return null;
 		}
 		
@@ -247,56 +306,167 @@ namespace TileD_Plugin.TileD
 		{
 			if( node.HasAttributes )
 			{
-				Log.Editor.Write("Loading tileset '{0}'...", node.Attribute("name").Value);
+				Log.Editor.Write("Loading tileset..."); //node.Attribute("name").Value);
 				
 				var tileset = new TiledTileset();
 				tileset.Parent = this;
 				
-				tileset.FirstGID = int.Parse( node.Attribute("firstgid").Value, System.Globalization.NumberStyles.Integer );
-				
-				tileset.Name = node.Attribute("name").Value;
-				tileset.TileW = int.Parse( node.Attribute("tilewidth").Value, System.Globalization.NumberStyles.Integer );
-				tileset.TileH = int.Parse( node.Attribute("tileheight").Value, System.Globalization.NumberStyles.Integer );
-				tileset.TileCount = int.Parse( node.Attribute("tilecount").Value, System.Globalization.NumberStyles.Integer );
-				
-				if( node.HasElements )
-				{
-					foreach( var element in node.Elements() )
-					{
-						switch( element.Name.LocalName )
-						{
-							case "tileoffset":
-								var tileoff = tileset.TileOffset;
-								tileoff.X = int.Parse( element.Attribute("x").Value, System.Globalization.NumberStyles.Integer );
-								tileoff.Y = int.Parse( element.Attribute("y").Value, System.Globalization.NumberStyles.Integer );
-								tileset.TileOffset = tileoff;
-								break;
-								
-							case "image":
-								tileset.LoadImage( element );
-								break;
-								
-							case "terraintypes":
-								tileset.LoadTerrainTypes( element );
-								break;
-								
-							case "tile":
-								tileset.LoadTerrainTiles( node );
-								break;
-						}
-					}
-				}
-				
-				return tileset;
+				return LoadTilesetData( node, tileset );
 			}
 			
 			return null;
 		}
 		
+		TiledTileset LoadTilesetData( XElement node, TiledTileset tileset )
+		{
+			if( node.Name != "tileset" )
+			{
+				Log.Editor.WriteError("Cannot load tileset data! (Element should be <tileset>, not <{0}>)", node.Name);
+				return null;
+			}
+			
+			if( tileset == null )
+			{
+				Log.Editor.WriteError("Cannot load tileset data! (Tileset is NULL)");
+				return null;
+			}
+			
+			// Read attributes
+			foreach( var attribute in node.Attributes() )
+			{
+				switch( attribute.Name.LocalName )
+				{
+					case "firstgid":
+						tileset.FirstGID = int.Parse(attribute.Value, System.Globalization.NumberStyles.Integer);
+						break;
+						
+					case "name":
+						tileset.Name = attribute.Value;
+						break;
+						
+					case "tilewidth":
+						tileset.TileW = int.Parse(attribute.Value, System.Globalization.NumberStyles.Integer);
+						break;
+						
+					case "tileheight":
+						tileset.TileH = int.Parse(attribute.Value, System.Globalization.NumberStyles.Integer);
+						break;
+						
+					case "tilecount":
+						tileset.TileCount = int.Parse(attribute.Value, System.Globalization.NumberStyles.Integer);
+						break;
+						
+					// Tilemap is using an external tileset file; go recursive!
+					case "source":
+						using( TextReader txt = new StreamReader(FileOp.Open(@"Source\Media\"+attribute.Value, FileAccessMode.Read) ) )
+						{
+							var xml = new XmlData();
+							var data = txt.ReadToEnd();
+							xml.SetData(data, data.Length, Encoding.Unicode);
+							xml.Validate(); // Not sure if this is necessary
+							
+							// Data is valid
+							if( xml.IsValid )
+								return LoadTilesetData(xml.XmlDocument.Root, tileset);
+							
+							Log.Editor.WriteError("Unable to load external tileset!");
+							return null;
+						}
+						
+					default:
+						Log.Editor.WriteWarning("Attribute {0} not supported in tilesets.", attribute.Name);
+						break;
+				}
+			}
+
+			foreach( var xelem in node.Elements() )
+			{
+				var element = (XElement)xelem;
+				
+				switch( element.Name.LocalName )
+				{
+					case "properties":
+						tileset.LoadProperties( element );
+						break;
+						
+					case "tileoffset":
+						tileset.LoadOffset( element );
+						break;
+						
+					case "image":
+						tileset.LoadImage( element );
+						break;
+						
+					case "terraintypes":
+						tileset.LoadTerrainTypes( element );
+						break;
+						
+					case "tile":
+						tileset.LoadTerrainTile( element );
+						break;
+						
+					default:
+						Log.Editor.WriteWarning("Element {0} not supported in tilesets.", element.Name);
+						break;
+				}
+			}
+			
+			return tileset;
+		}
+		
 		TiledObjectGroup LoadObjectGroup( XElement node )
 		{
-			// TODO: LoadObjectGroup and rendering
-			Log.Editor.Write("Loading object group '{0}'...", node.Attribute("name").Value);
+			if( node.HasAttributes )
+			{
+				Log.Editor.Write("Loading object group '{0}'...", TiledHelper.GetAttribute(node, "name"));
+				
+				var objGroup = new TiledObjectGroup();
+				objGroup.Parent = this;
+				
+				foreach( var attribute in node.Attributes() )
+				{
+					switch( attribute.Name.LocalName )
+					{
+						case "color":
+							objGroup.Color = new ColorRgba( int.Parse(attribute.Value.Replace("#", ""), System.Globalization.NumberStyles.HexNumber) );
+							break;
+							
+						case "name":
+							objGroup.Name = attribute.Value;
+							break;
+							
+						case "opacity":
+							objGroup.Opacity = float.Parse(attribute.Value, System.Globalization.NumberStyles.Float);
+							break;
+						
+						default:
+							Log.Editor.WriteWarning("Attribute {0} not supported in object groups.", attribute.Name);
+							break;
+					}
+				}
+				
+				foreach( var element in node.Elements() )
+				{
+					switch( element.Name.LocalName )
+					{
+						case "properties":
+							objGroup.Properties.Extend( element );
+							break;
+							
+						case "object":
+							objGroup.LoadObject( element );
+							break;
+							
+						default:
+							Log.Editor.WriteWarning("Element {0} not supported in object groups.", element.Name);
+							break;
+					}
+				}
+				
+				
+				return objGroup;
+			}
+			
 			
 			//objGroup.Parent = this;
 			
@@ -305,10 +475,60 @@ namespace TileD_Plugin.TileD
 		
 		TiledImageLayer LoadImageLayer( XElement node )
 		{
-			// TODO: LoadImageLayer and rendering
-			Log.Editor.Write("Loading image layer '{0}'...", node.Attribute("name").Value);
-			
-			//imgLayer.Parent = this;
+			if( node.HasAttributes )
+			{
+				Log.Editor.Write("Loading image layer '{0}'...", node.Attribute("name").Value);
+				
+				var imgLayer = new TiledImageLayer();
+				imgLayer.Parent = this;
+				
+				foreach( var attribute in node.Attributes() )
+				{
+					switch( attribute.Name.LocalName )
+					{
+						case "name":
+							imgLayer.Name = attribute.Value;
+							break;
+							
+						case "x":
+							imgLayer.X = int.Parse(attribute.Value, System.Globalization.NumberStyles.Integer);
+							break;
+							
+						case "y":
+							imgLayer.Y = int.Parse(attribute.Value, System.Globalization.NumberStyles.Integer);
+							break;
+							
+						case "opacity":
+							imgLayer.Opacity = float.Parse(attribute.Value, System.Globalization.NumberStyles.Float);
+							break;
+							
+						default:
+							Log.Editor.WriteWarning("Attribute {0} not supported in image layers.", attribute.Name);
+							break;
+					}
+				}
+				
+				foreach( var element in node.Elements() )
+				{
+					switch( element.Name.LocalName )
+					{
+						case "image":
+							imgLayer.LoadImage( element );
+							break;
+							
+						case "properties":
+							imgLayer.LoadProperties( element );
+							break;
+							
+						default:
+							Log.Editor.WriteWarning("Element {0} not supported in image layers.", element.Name);
+							break;
+					}
+				}
+				
+				return imgLayer;
+			}
+				
 			
 			return null;
 		}
@@ -372,8 +592,13 @@ namespace TileD_Plugin.TileD
 						float thp = (float)tileset.HPixel;
 						
 						var vertices = new VertexC1P3T2[4];
-						var color = tileset.Image.Res.MainColor;
+						
+						// Get tileset main color and set layer's opacity on it
+						var color = tileset.Image.Res.MainColor.WithAlpha( layer.Opacity );
+						
 						var uvRatio = tileset.Image.Res.MainTexture.Res.UVRatio;
+						
+						
 						
 						// Texture coordinates
 						var uvRect = new Rect(
@@ -444,5 +669,15 @@ namespace TileD_Plugin.TileD
 				return 1f;
 			}
 		}
+		
+		public override string ToString()
+		{
+			string rtnString;
+			
+			rtnString = string.Format("[TiledMap RenderOrder={0}, Pos={1}, W={2}, H={3}, TileW={4}, TileH={5}, NextObjectID={6}, Version={7}, Orientation={8}, Tilesets={9}, Layers={10}, ObjectGroups={11}, ImageLayers={12}]", RenderOrder, Pos, W, H, TileW, TileH, NextObjectID, Version, Orientation, Tilesets, Layers, ObjectGroups, ImageLayers);
+			
+			return rtnString;
+		}
+
 	}
 }

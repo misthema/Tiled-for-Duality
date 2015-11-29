@@ -26,6 +26,11 @@ namespace TileD_Plugin.TileD
 		
 		public void Extend( XElement node )
 		{
+			if( node == null )
+			{
+				Log.Editor.WriteError("Trying to extend TiledPropertySet with a NULL node!");
+			}
+			
 			if( node.Name != "properties" )
 			{
 				Log.Editor.WriteWarning("Trying to extend TiledPropertySet with wrong node! (Node '{0}')", node.Name);

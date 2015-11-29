@@ -30,20 +30,20 @@ namespace TileD_Plugin.TileD
 		public int[] Tiles {get;set;}
 		public TiledMap Parent {get;set;}
 		
-		public TiledLayer(int w, int h)
+		public TiledLayer()
 		{
 			Name = "UnnamedLayer";
-			W = w;
-			H = h;
-			Tiles = new int[w * h];
+			W = 0;
+			H = 0;
 			Properties = new TiledPropertySet();
+			Visible = true;
 		}
 		
 		internal bool validateTiles( int x, int y )
 		{
-			if( Tiles == null )
+			if( Tiles == null || Tiles.Length == 0 )
 			{
-				Log.Editor.WriteWarning("Trying to access a null layer (doesn't exist).");
+				Log.Editor.WriteWarning("Layer {0} tile array is not initialized.", Name);
 				return false;
 			}
 			
@@ -76,20 +76,39 @@ namespace TileD_Plugin.TileD
 				return;
 			}
 			
+			Tiles = new int[W * H];
+			
 			// Load tiles from <data>'s elements
 			int i = 0;
-			foreach( var tile in node.Elements() )
+			foreach( var element in node.Elements() )
 			{
-				if( tile.Name != "tile" ) continue;
-				if( !tile.HasAttributes ) continue;
+				if( element.Name != "tile" )
+					continue;
 				
-				var gid = int.Parse(tile.Attribute("gid").Value, System.Globalization.NumberStyles.Integer);
-				int x = i % W;
-				int y = i / W;
-				
-				SetTile(x, y, gid);
-				i++;
+				foreach( var attribute in element.Attributes() )
+				{
+					switch( attribute.Name.LocalName )
+					{
+						case "gid":
+							var gid = int.Parse(attribute.Value, System.Globalization.NumberStyles.Integer);
+							int x = i % W;
+							int y = i / W;
+							
+							SetTile(x, y, gid);
+							i++;
+							break;
+							
+						default:
+							Log.Editor.Write("Attribute {0} is not supported in layer tiles.", attribute.Name);
+							break;
+					}
+				}
 			}
+		}
+		
+		public void LoadProperties( XElement node )
+		{
+			Properties.Extend( node );
 		}
 	}
 }

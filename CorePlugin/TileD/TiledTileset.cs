@@ -18,6 +18,8 @@ namespace TileD_Plugin.TileD
 {
 	public struct TiledTerrainType
 	{
+		public static int TerrainCount {get;set;}
+		public int TerrainID {get;set;}
 		public string Name {get;set;}
 		public int[] Data {get;set;}
 		public int TileID {get;set;}
@@ -64,15 +66,49 @@ namespace TileD_Plugin.TileD
 			
 			return false;
 		}
+		
+		public void LoadProperties( XElement node )
+		{
+			Properties.Extend( node );
+		}
+		
+		public void LoadOffset( XElement node )
+		{
+			if( node.HasAttributes )
+			{
+				var tileoff = TileOffset;
+								
+				foreach( var attribute in node.Attributes() )
+				{
+					switch( attribute.Name.LocalName )
+					{
+						case "x":
+							tileoff.X = int.Parse( attribute.Value, System.Globalization.NumberStyles.Integer );
+							break;
+							
+						case "y":
+							tileoff.Y = int.Parse( attribute.Value, System.Globalization.NumberStyles.Integer );
+							break;
+				
+						default:
+							Log.Editor.WriteWarning("Attribute {0} not supported in tileset offset.", attribute.Name);
+							break;
+					}
+				}
+				
+				TileOffset = tileoff;
+			}
+				
+		}
 
 		public void LoadImage( XElement node )
 		{
 			if( !node.HasAttributes || node.Name != "image" )
 				return;
 			
-			string source = node.Attribute("source").Value;
-			int width = int.Parse( node.Attribute("width").Value, System.Globalization.NumberStyles.Integer );
-			int height = int.Parse( node.Attribute("height").Value, System.Globalization.NumberStyles.Integer );
+			string source = TiledHelper.GetAttribute(node, "source"); //node.Attribute("source").Value;
+			int width = int.Parse( TiledHelper.GetAttribute(node, "width"), System.Globalization.NumberStyles.Integer );
+			int height = int.Parse( TiledHelper.GetAttribute(node, "height"), System.Globalization.NumberStyles.Integer );
 			
 			WPixel = width;
 			HPixel = height;
@@ -114,42 +150,71 @@ namespace TileD_Plugin.TileD
 		
 		public void LoadTerrainTypes( XElement node )
 		{
+			/*if( !node.Name.Equals("terraintypes") )
+			{
+				Log.Editor.WriteWarning("Loading TerrainType failed!");
+				return;
+			}*/
+			
 			if( node.HasElements )
 			{
 				foreach( var element in node.Elements() )
 				{
+					if( element.Name != "terrain" ) continue;
 					if( !element.HasAttributes ) continue;
 					
 					var terrainType = new TiledTerrainType();
-					terrainType.Name = node.Attribute("name").Value;
-					terrainType.TileID = int.Parse( node.Attribute("tile").Value, System.Globalization.NumberStyles.Integer );
+					terrainType.TerrainID = TiledTerrainType.TerrainCount++;
+					terrainType.Name = TiledHelper.GetAttribute(element, "name"); //node.Attribute("name").Value;
+					terrainType.TileID = int.Parse( TiledHelper.GetAttribute(element, "tile"), System.Globalization.NumberStyles.Integer );
 					
 					TerrainTypes.Add( terrainType.TileID, terrainType );
 				}
 			}
+			else
+				Log.Editor.WriteWarning("Node <{0}> has no elements. (Should have <terrain> nodes!)", node.Name);
 		}
 		
-		public void LoadTerrainTiles( XElement node )
+		public void LoadTerrainTile( XElement tileNode )
 		{
-			if( node.HasElements )
+
+			if( tileNode.Name != "tile" )
 			{
-				foreach( var element in node.Elements() )
+				Log.Editor.WriteWarning("Node is not a <tile>, it is <{0}>.", tileNode.Name );
+				return;
+			}
+			if( !tileNode.HasAttributes )
+			{
+				Log.Editor.WriteWarning("Node <{0}> does not have attribues. (Expected a <tile> node with attributes)", tileNode.Name );
+				return;
+			}
+			
+			var idStr = TiledHelper.GetAttribute(tileNode, "id");
+			var tileID = int.Parse( string.IsNullOrEmpty(idStr) ? "0" : idStr, System.Globalization.NumberStyles.Integer );
+			string terrainStr = TiledHelper.GetAttribute(tileNode, "terrain");
+			string[] terrain = terrainStr.Split(',');
+			
+			TiledTerrainType terrainType = new TiledTerrainType();
+			
+			if( TerrainTypes.ContainsKey(tileID) )
+			{
+				terrainType = TerrainTypes[tileID];
+			}
+			
+			if( terrain != null && terrain.Length > 0 )
+			{
+				terrainType.Data = new int[4];
+				for( int i = 0; i < terrain.Length; i++ )
 				{
-					if( element.Name != "tile" ) continue;
-					if( !element.HasAttributes ) continue;
-					
-					var tileID = int.Parse( node.Attribute("id").Value, System.Globalization.NumberStyles.Integer );
-					string[] terrain = node.Attribute("terrain").Value.Split(',');
-					
-					var terrainType = TerrainTypes[tileID];
-					
-					terrainType.Data = new int[4];
-					for( int i = 0; i < 4; i++ )
-					{
+					if( !string.IsNullOrEmpty( terrain[i] ) )
 						terrainType.Data[i] = int.Parse( terrain[i], System.Globalization.NumberStyles.Integer );
-					}
+					else
+						terrainType.Data[i] = -1;
 				}
 			}
+			else
+				Log.Editor.WriteWarning("No terrain data in <{0}.{1}>.", tileNode.Parent.Parent.Name, tileNode.Parent.Name );
+
 		}
 	}
 }

@@ -18,8 +18,6 @@ namespace TileD_Plugin.TileD
 	public class TiledLoader : Component, ICmpEditorUpdatable
 	{
 		public ContentRef<XmlData> TileDMap {get;set;}
-		public ContentRef<Texture> CustomTileset {get;set;}
-		ContentRef<Texture> tileSet;
 		bool inited = false;
 		
 		public List<string> TilesetPaths {get;set;}
@@ -68,43 +66,26 @@ namespace TileD_Plugin.TileD
 		
 		public void LoadMap(XmlData map)
 		{
+			PlayAround();
+			
 			Map = new TiledMap(map);
 			Map.GameObj = this.GameObj;
 			
 			//printNode( map.XmlDocument.Root );
 			
-			//PlayAround();
+			
 		}
 		
 		void PlayAround()
 		{
-			var content = ContentProvider.GetAvailableContent<Pixmap>();
+			// Store integer 182
+			int intValue = 16581375;
+			// Convert integer 182 as a hex in a string variable
+			string hexValue = intValue.ToString("X");
+			// Convert the hex string back to the number
+			int intAgain = int.Parse(hexValue, System.Globalization.NumberStyles.HexNumber);
 			
-			
-			foreach( var con in content )
-			{
-				Log.Editor.Write("'{0}'", con.FullName);
-				Log.Editor.Write("   '{0}'", con.Name);
-			}
-			
-			
-			uint FLIPPED_HORIZONTALLY_FLAG = 0x80000000;
-			uint FLIPPED_VERTICALLY_FLAG   = 0x40000000;
-			uint FLIPPED_DIAGONALLY_FLAG   = 0x20000000;
-			uint id = 1073747272;
-			
-			var obj = new TiledObject();
-			obj.Gid = id;
-			
-			Log.Editor.Write("{0} --> {1}", id, obj.Gid);
-			Log.Editor.Write("TiledFlipped.{0}", obj.Flipped);
-			
-			Log.Editor.Write("terrain.Split(',') = {0},{1},{2},{3}",
-			               "0,0,,0".Split(',')[0],
-			               "0,0,,0".Split(',')[1],
-			               "0,0,,0".Split(',')[2],
-			               "0,0,,0".Split(',')[3]
-			              );
+			Log.Editor.Write("TEST: {0} = {1} = {2}", intValue, hexValue, intAgain);
 		}
 		
 		void printNode(XNode node, int depth = 0)
